@@ -37,14 +37,32 @@
             }
          }'>
 
-        {{-- Header --}}
+        {{-- Header (Sekarang Dinamis Berdasarkan Toko) --}}
         <div class="px-8 py-6 border-b border-gray-50 bg-gradient-to-r from-blue-600 to-blue-500">
-            <h2 class="text-xl font-extrabold text-white">🧺 Buat Order Laundry</h2>
-            <p class="text-blue-100 text-sm mt-1">Isi form berikut untuk memulai order kamu</p>
+            <h2 class="text-xl font-extrabold text-white">🧺 Buat Order - {{ $shop->name }}</h2>
+            <p class="text-blue-100 text-sm mt-1">Isi form berikut untuk memulai order kamu di {{ $shop->name }}</p>
         </div>
 
         <form method="POST" action="{{ route('customer.orders.store') }}" class="p-8 space-y-6">
             @csrf
+            
+            {{-- ◄ BARU & PENTING: Mengirimkan ID Toko agar lolos validasi Controller ── --}}
+            <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+
+            {{-- ◄ BARU: Kotak Alert Penampil Error Validasi ── --}}
+            @if ($errors->any())
+                <div class="p-4 mb-4 text-sm text-red-800 rounded-xl bg-red-50 border border-red-100" role="alert">
+                    <div class="flex items-center gap-2 font-bold mb-1 text-red-900">
+                        <span class="material-symbols-outlined !text-[18px]">error</span>
+                        Gagal mengirimkan order! Silakan periksa kembali:
+                    </div>
+                    <ul class="list-disc list-inside space-y-0.5 text-red-700 pl-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
             {{-- ── Pilih Layanan ────────────────────────────────────── --}}
             <div>
@@ -66,7 +84,14 @@
                             <div class="flex items-start gap-3">
                                 <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                                     @php
-                                    $mappedIcon = ($service->icon == 'shirt' || !$service->icon) ? 'dry_cleaning' : $service->icon;
+                                    // MAPPING ICON DIPERBAIKI DI SINI
+                                    if (!$service->icon || $service->icon == 'shirt') {
+                                        $mappedIcon = 'dry_cleaning';
+                                    } elseif ($service->icon == 'sparkles') {
+                                        $mappedIcon = 'auto_awesome'; // Terjemahan 'sparkles' untuk Google Material Symbols
+                                    } else {
+                                        $mappedIcon = $service->icon;
+                                    }
                                     @endphp
                                     <span class="material-symbols-outlined text-blue-600 !text-[20px]">{{ $mappedIcon }}</span>
                                 </div>
@@ -81,7 +106,7 @@
                                     </p>
                                 </div>
 
-                                {{-- Bagian indikator lingkaran yang sudah diperbaiki --}}
+                                {{-- Bagian indikator lingkaran --}}
                                 <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1 transition-colors"
                                     :class="selectedService == {{ $service->id }} ? 'border-blue-500' : 'border-gray-300'">
                                     <div class="w-2.5 h-2.5 rounded-full bg-blue-500"
@@ -184,7 +209,7 @@
                     </label>
                 </div>
 
-                {{-- Kuesioner Deteksi Najis (Hanya Muncul Jika Syariah Aktif) --}}
+                {{-- Kuesioner Deteksi Najis --}}
                 <div x-show="isSyariah" x-transition class="pt-3 border-t border-emerald-100/70 space-y-3">
                     <label class="block text-xs font-bold text-emerald-800 uppercase tracking-wider">
                         ⚠️ Deteksi Najis Pakaian
@@ -206,12 +231,13 @@
                         </label>
                     </div>
 
+                    {{-- Nama Tim Diubah Menjadi Dinamis Berdasarkan Toko --}}
                     <div x-show="hasNajis === 'ada'" x-transition class="mt-2 bg-amber-50/60 border border-amber-100 rounded-xl p-3 text-xs text-amber-800">
                         <p class="font-bold flex items-center gap-1.5">
                             <span class="material-symbols-outlined !text-[18px]">info</span> Prosedur Penting Thaharah:
                         </p>
                         <p class="mt-1 text-gray-600 leading-relaxed">
-                            Tim LaundryTrack akan memproses pensucian serta pembilasan najis secara syar'i terlebih dahulu (*Thaharah*) sebelum digabungkan ke mesin cuci utama standar sertifikasi halal.
+                            Tim <strong>{{ $shop->name }}</strong> akan memproses pensucian serta pembilasan najis secara syar'i terlebih dahulu (*Thaharah*) sebelum digabungkan ke mesin cuci utama standar sertifikasi halal.
                         </p>
                     </div>
                 </div>
@@ -260,8 +286,8 @@
             {{-- ── Submit ───────────────────────────────────────────── --}}
             <button type="submit"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl
-                           transition-all flex items-center justify-center gap-2 text-sm
-                           disabled:opacity-50 disabled:cursor-not-allowed"
+                            transition-all flex items-center justify-center gap-2 text-sm
+                            disabled:opacity-50 disabled:cursor-not-allowed"
                 :disabled="!selectedService">
                 <span class="material-symbols-outlined !text-[18px]">send</span>
                 Kirim Order Sekarang

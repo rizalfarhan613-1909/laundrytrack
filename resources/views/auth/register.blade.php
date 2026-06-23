@@ -15,10 +15,10 @@
 
     <div class="text-center mb-8">
         <a href="{{ route('home') }}" class="inline-flex items-center gap-2.5">
-            <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-                <i data-lucide="shirt" class="w-6 h-6 text-white"></i>
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                <img src="{{ asset('images/logou.png') }}" alt="LaundryTrack Logo" class="h-12 w-auto object-contain">
             </div>
-            <span class="font-extrabold text-blue-700 text-2xl">LaundryTrack</span>
+            <span class="font-extrabold text-blue-400 text-2xl">LaundryTrack</span>
         </a>
         <p class="text-gray-400 text-sm mt-2">Daftar sebagai customer</p>
     </div>

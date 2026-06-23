@@ -40,6 +40,12 @@
             <button class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
                 <i data-lucide="filter" class="w-4 h-4"></i> Tampilkan
             </button>
+
+            {{-- New Export Button --}}
+            <a href="{{ route('admin.reports.export', ['from' => $from, 'to' => $to]) }}" 
+               class="bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Export PDF
+            </a>
         </form>
     </div>
 
@@ -47,9 +53,9 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         @php
         $kpis = [
-            ['label'=>'Total Pemasukan',    'value'=>'Rp '.number_format($revenue,0,',','.'),         'icon'=>'banknote',    'color'=>'blue'],
-            ['label'=>'Total Order',        'value'=>$totalOrders,                                     'icon'=>'shopping-bag','color'=>'purple'],
-            ['label'=>'Order Selesai',      'value'=>$finishedOrders . ' / ' . $totalOrders,           'icon'=>'check-circle','color'=>'green'],
+            ['label'=>'Total Pemasukan',    'value'=>'Rp '.number_format($revenue,0,',','.'),        'icon'=>'banknote',    'color'=>'blue'],
+            ['label'=>'Total Order',        'value'=>$totalOrders,                                   'icon'=>'shopping-bag','color'=>'purple'],
+            ['label'=>'Order Selesai',      'value'=>$finishedOrders . ' / ' . $totalOrders,         'icon'=>'check-circle','color'=>'green'],
         ];
         $kc = ['blue'=>['bg'=>'bg-blue-50','text'=>'text-blue-600'],
                'purple'=>['bg'=>'bg-purple-50','text'=>'text-purple-600'],
@@ -81,15 +87,17 @@
                 </div>
             @else
             @php $maxR = $dailyRevenue->max('total') ?: 1; @endphp
-            <div class="overflow-x-auto">
-                <div class="flex items-end gap-2 h-48 min-w-max">
+            <div class="overflow-x-auto pb-2">
+                {{-- PERBAIKAN: Menambahkan item-end dan pada child div di set h-full justify-end --}}
+                <div class="flex items-end gap-3 h-48 min-w-max pt-4">
                     @foreach($dailyRevenue as $row)
                     @php $pct = ($row->total / $maxR) * 100; @endphp
-                    <div class="flex flex-col items-center gap-1 w-12">
-                        <span class="text-xs text-gray-400">{{ 'Rp'.number_format($row->total/1000,0).'k' }}</span>
-                        <div class="w-8 bg-blue-500 rounded-t-lg transition-all" style="height: {{ max(4, $pct * 0.88) }}%"></div>
-                        <span class="text-xs text-gray-400 whitespace-nowrap">{{ \Carbon\Carbon::parse($row->date)->format('d/m') }}</span>
-                        <span class="text-xs text-gray-300">{{ $row->count }}x</span>
+                    <div class="flex flex-col items-center justify-end h-full gap-1.5 w-12 group cursor-pointer">
+                        <span class="text-[10px] font-medium text-gray-400 group-hover:text-blue-600 transition-colors">{{ 'Rp'.number_format($row->total/1000,0).'k' }}</span>
+                        {{-- PERBAIKAN: Tinggi balok akan dirender sempurna sekarang --}}
+                        <div class="w-full bg-blue-500 rounded-t-lg transition-all group-hover:bg-blue-600" style="height: {{ max(4, $pct * 0.85) }}%"></div>
+                        <span class="text-[10px] font-semibold text-gray-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($row->date)->format('d/m') }}</span>
+                        <span class="text-[9px] text-gray-400">{{ $row->count }}x</span>
                     </div>
                     @endforeach
                 </div>

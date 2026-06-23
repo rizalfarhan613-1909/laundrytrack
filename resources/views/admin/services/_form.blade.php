@@ -10,7 +10,7 @@
 --}}
 
 <form method="POST" action="{{ $action }}"
-      x-data="serviceForm()"
+      x-data="serviceForm({{ old('price_per_kg', $service->price_per_kg) ?? 0 }}, {{ old('estimated_days', $service->estimated_days) ?? 2 }})"
       class="space-y-6">
 
     @csrf
@@ -78,7 +78,7 @@
         </div>
         <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
 
-            {{-- Harga per KG ──── BAGIAN UTAMA: tidak hardcoded lagi --}}
+            {{-- Harga per KG --}}
             <div>
                 <label for="price_per_kg" class="block text-sm font-semibold text-gray-700 mb-1.5">
                     Harga per Kilogram (Rp) <span class="text-red-500">*</span>
@@ -88,7 +88,6 @@
                     <input type="number"
                            id="price_per_kg"
                            name="price_per_kg"
-                           value="{{ old('price_per_kg', $service->price_per_kg) }}"
                            placeholder="7000"
                            min="500"
                            max="999999"
@@ -116,7 +115,6 @@
                     <input type="number"
                            id="estimated_days"
                            name="estimated_days"
-                           value="{{ old('estimated_days', $service->estimated_days ?? 2) }}"
                            placeholder="2"
                            min="0"
                            max="30"
@@ -243,17 +241,28 @@
 </form>
 
 @push('scripts')
+<script src="https://unpkg.com/lucide@latest"></script>
+
 <script>
 /**
  * Alpine.js component untuk form layanan
- * Mengelola live preview kalkulasi harga saat user mengetik
  */
-function serviceForm() {
+function serviceForm(initialPrice, initialDays) {
     return {
-        // Nilai awal dari input (akan di-reactive oleh Alpine x-model)
-        price: parseFloat(document.getElementById('price_per_kg').value) || 0,
-        days:  parseInt(document.getElementById('estimated_days').value) || 2,
+        price: initialPrice,
+        days: initialDays,
     };
 }
+
+/**
+ * 2. Memicu Lucide untuk merender ikon setelah HTML selesai dimuat
+ */
+document.addEventListener("DOMContentLoaded", function() {
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    } else {
+        console.error("Library Lucide gagal dimuat. Periksa koneksi internet atau letak CDN script.");
+    }
+});
 </script>
 @endpush

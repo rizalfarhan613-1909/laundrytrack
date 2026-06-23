@@ -74,7 +74,7 @@ class KurirController extends Controller
 
         $order->load(['customer', 'service', 'payment']);
 
-        // Generate WA deep-link ke customer
+        // Generate WA deep-link ke customer (tetap dipertahankan untuk chat manual jika darurat)
         $waLink = $this->wa->kurirToCustomerLink($order);
 
         return view('kurir.order-detail', compact('order', 'waLink'));
@@ -113,23 +113,21 @@ class KurirController extends Controller
             $order->update(['kurir_id' => Auth::id()]);
             $order->advanceStatus(); // pending → pickup
 
-            // Notif ke customer bahwa kurir sudah on the way
-            $this->wa->notifyStatusChanged($order->fresh(['customer', 'service']));
-
-            // Notif ke kurir sendiri (konfirmasi tugas)
-            $this->wa->notifyKurir($order->fresh(['kurir', 'customer', 'service']));
+            // Info: WA Notif otomatis dimatikan karena beralih ke chat internal / push notification
+            // $this->wa->notifyStatusChanged($order->fresh(['customer', 'service']));
+            // $this->wa->notifyKurir($order->fresh(['kurir', 'customer', 'service']));
         });
 
-        return back()->with('success', "✓ Berhasil! Kamu mengambil tugas jemput order {$order->order_code}. Segera hubungi customer.");
+        return back()->with('success', "✓ Berhasil! Kamu mengambil tugas jemput order {$order->order_code}. Segera jemput pakaian customer.");
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  CONFIRM PICKUP — Kurir konfirmasi sudah sampai di laundry
+    //  CONFIRM PICKUP — Kurir menginput berat & status najis di tempat
     // ═══════════════════════════════════════════════════════════════
 
-    public function confirmPickup(Order $order)
+    public function confirmPickup(Request $request, Order $order)
     {
-        // Validasi hak akses
+        // 1. Validasi Hak Akses Kurir
         if ($order->kurir_id !== Auth::id()) {
             abort(403, 'Kamu tidak ditugaskan ke order ini.');
         }
@@ -137,16 +135,38 @@ class KurirController extends Controller
             return back()->withErrors(['error' => 'Status order tidak bisa dikonfirmasi (harus status Pickup).']);
         }
 
-        // Ubah status ke in_process (kasir yang akan lanjutkan proses pencucian)
-        $order->update([
-            'status'     => 'in_process',
-            'process_at' => now(),
+        // 2. Validasi Input Berat dan Status Kesucian
+        $request->validate([
+            'weight_kg'    => 'required|numeric|min:0.1',
+            'status_najis' => 'required|in:clean,pending_purification,mutanajis_all',
+        ], [
+            'weight_kg.required'    => 'Berat pakaian wajib diisi.',
+            'weight_kg.numeric'     => 'Format berat harus berupa angka.',
+            'weight_kg.min'         => 'Berat minimal adalah 0.1 kg.',
+            'status_najis.required' => 'Kondisi kesucian pakaian wajib dipilih.',
+            'status_najis.in'       => 'Pilihan kondisi kesucian tidak valid.',
         ]);
 
-        // Notif ke customer bahwa cucian sudah di laundry
-        $this->wa->notifyStatusChanged($order->fresh(['customer', 'service']));
+        // 3. Hitung Otomatis Total Harga (Berat x Harga per Kg dari Layanan)
+        $totalPrice = $request->weight_kg * $order->service->price;
 
-        return back()->with('success', "✓ Cucian order {$order->order_code} berhasil diantar ke laundry. Status diubah ke 'Sedang Diproses'.");
+        // 4. Update Data Order & Majukan Status ke in_process (Sedang Diproses)
+        $order->update([
+            'weight_kg'    => $request->weight_kg,
+            'status_najis' => $request->status_najis,
+            'total_price'  => $totalPrice,
+            'status'       => 'in_process',
+            'process_at'   => now(),
+        ]);
+
+        // ═══════════════════════════════════════════════════════════
+        // TODO: TRIGGER PUSH NOTIFICATION EVENT DI SINI NANTI
+        // ═══════════════════════════════════════════════════════════
+        // Contoh: event(new OrderWeighedAndProcessed($order));
+        // ═══════════════════════════════════════════════════════════
+
+        // Mengarahkan kurir kembali ke halaman dashboard utama karena tugas jemput telah selesai
+        return redirect()->route('kurir.dashboard')->with('success', "✓ Cucian order {$order->order_code} sukses ditimbang ({$request->weight_kg} kg) & diserahkan ke outlet. Status berubah menjadi 'Sedang Diproses'.");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -163,7 +183,9 @@ class KurirController extends Controller
         }
 
         $request->validate([
-            'reason' => 'nullable|string|max:255',
+            'reason' => 'required|string|max:255',
+        ], [
+            'reason.required' => 'Alasan melepas tugas wajib diisi.',
         ]);
 
         DB::transaction(function () use ($order, $request) {
@@ -172,11 +194,11 @@ class KurirController extends Controller
                 'status'    => 'pending',
                 'kurir_id'  => null,
                 'pickup_at' => null,
-                'notes'     => $order->notes . "\n[Kurir melepas tugas: " . ($request->reason ?? 'Tanpa alasan') . "]",
+                'notes'     => $order->notes . "\n[Kurir melepas tugas: " . $request->reason . "]",
             ]);
         });
 
-        return back()->with('success', "Tugas order {$order->order_code} telah dilepas. Order kembali ke antrian.");
+        return redirect()->route('kurir.dashboard')->with('success', "Tugas order {$order->order_code} telah dilepas. Order kembali ke antrian.");
     }
 
     // ═══════════════════════════════════════════════════════════════

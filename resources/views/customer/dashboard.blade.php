@@ -5,10 +5,18 @@
 @section('content')
 @php
     $user   = auth()->user();
-    $orders = $user->orders()->with(['service','payment'])->latest()->take(5)->get();
-    $activeCount   = $user->orders()->whereNotIn('status',['finished','cancelled'])->count();
-    $totalSpent    = $user->orders()->whereHas('payment', fn($q) => $q->where('status','verified'))->with('payment')->get()->sum(fn($o) => $o->payment->amount ?? 0);
-    $finishedCount = $user->orders()->where('status','finished')->count();
+    $orders = $user->orders()->with(['service', 'payment'])->latest()->take(5)->get();
+    
+    // Perhitungan statistik utama
+    $activeCount   = $user->orders()->whereNotIn('status', ['finished', 'cancelled'])->count();
+    $finishedCount = $user->orders()->where('status', 'finished')->count();
+    
+    // Total belanja dari pembayaran yang sudah verified
+    $totalSpent = $user->orders()
+        ->whereHas('payment', fn($q) => $q->where('status', 'verified'))
+        ->with('payment')
+        ->get()
+        ->sum(fn($o) => $o->payment->amount ?? 0);
 @endphp
 
 <div class="space-y-6">
@@ -29,17 +37,21 @@
     </div>
 
     {{-- ── Stats ──────────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         @php
-        $stats = [
-            ['label'=>'Order Aktif',    'value'=>$activeCount,   'icon'=>'loader',    'color'=>'blue'],
-            ['label'=>'Selesai',        'value'=>$finishedCount, 'icon'=>'check-circle','color'=>'green'],
-            ['label'=>'Total Belanja',  'value'=>'Rp '.number_format($totalSpent/1000,0).'k', 'icon'=>'wallet','color'=>'purple'],
-        ];
-        $sc = ['blue'=>'bg-blue-50 text-blue-600','green'=>'bg-green-50 text-green-600','purple'=>'bg-purple-50 text-purple-600'];
+            $stats = [
+                ['label'=>'Order Aktif',    'value'=>$activeCount,   'icon'=>'loader',      'color'=>'blue'],
+                ['label'=>'Selesai',        'value'=>$finishedCount, 'icon'=>'check-circle','color'=>'green'],
+                ['label'=>'Total Belanja',  'value'=>'Rp '.number_format($totalSpent/1000,0).'k', 'icon'=>'wallet','color'=>'purple'],
+            ];
+            $sc = [
+                'blue'   => 'bg-blue-50 text-blue-600',
+                'green'  => 'bg-green-50 text-green-600',
+                'purple' => 'bg-purple-50 text-purple-600'
+            ];
         @endphp
         @foreach($stats as $s)
-        <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
             <div class="w-10 h-10 rounded-xl {{ $sc[$s['color']] }} flex items-center justify-center mx-auto mb-2">
                 <i data-lucide="{{ $s['icon'] }}" class="w-5 h-5"></i>
             </div>
@@ -50,25 +62,31 @@
     </div>
 
     {{-- ── Recent Orders ───────────────────────────────────────────── --}}
-    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-50">
             <h3 class="font-bold text-gray-800">Order Terakhir</h3>
             <a href="{{ route('customer.orders.index') }}" class="text-xs text-blue-600 hover:underline">Lihat semua →</a>
         </div>
-       <div class="divide-y divide-gray-50">
+        <div class="divide-y divide-gray-50">
             @forelse($orders as $order)
             @php 
                 $badge = $order->getStatusBadge(); 
                 
-                // ── PROSES CONVERT ICON MATERIAL KE LUCIDE ──
-                $serviceIcon = $order->service->icon ?? 'shirt';
-                if ($serviceIcon === 'schedule') $serviceIcon = 'clock';
-                if ($serviceIcon === 'water_drop') $serviceIcon = 'droplet';
+                $iconMap = [
+                    'schedule'              => 'clock',
+                    'water_drop'            => 'droplet',
+                    'dry_cleaning'          => 'shirt',            
+                    'local_laundry_service' => 'washing-machine', 
+                    'iron'                  => 'iron',            
+                    'flash_on'              => 'zap',             
+                ];
+
+                $dbIcon = $order->service->icon ?? 'shirt';
+                $serviceIcon = $iconMap[$dbIcon] ?? str_replace('_', '-', $dbIcon);
             @endphp
             <a href="{{ route('customer.orders.show', $order) }}"
                class="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
                 <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    {{-- Ubah variabel di bawah ini menjadi $serviceIcon --}}
                     <i data-lucide="{{ $serviceIcon }}" class="w-5 h-5 text-blue-500"></i>
                 </div>
                 <div class="flex-1 min-w-0">
@@ -101,13 +119,13 @@
     </div>
 
     {{-- ── Quick Track ─────────────────────────────────────────────── --}}
-    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
             <i data-lucide="search" class="w-4 h-4 text-blue-500"></i>
             Lacak Order
         </h3>
         <form method="GET" action="{{ route('order.track') }}" class="flex gap-2" target="_blank">
-            <input type="text" name="code" placeholder="Masukkan kode order (LT-20240101-001)"
+            <input type="text" name="code" placeholder="Masukkan kode order (Contoh: LT-XXXX-XXXX)"
                    class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <button class="bg-blue-50 text-blue-700 font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-blue-100 transition-colors">
                 Track

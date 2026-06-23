@@ -12,11 +12,12 @@ namespace App\Events;
 use App\Models\Conversation;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow; // <-- DIPERBAIKI
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ConversationUpdated implements ShouldBroadcast
+// <-- DIPERBAIKI: Pakai ShouldBroadcastNow
+class ConversationUpdated implements ShouldBroadcastNow 
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -27,13 +28,12 @@ class ConversationUpdated implements ShouldBroadcast
 
     /**
      * Channel personal per user untuk update inbox.
-     * Format: user-inbox.{userId}
-     * Setiap user subscribe ke channel pribadinya masing-masing.
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel("user-inbox.{$this->recipientId}"),
+            // <-- DIPERBAIKI: Disamakan dengan routes/channels.php
+            new PrivateChannel("user.{$this->recipientId}.inbox"), 
         ];
     }
 

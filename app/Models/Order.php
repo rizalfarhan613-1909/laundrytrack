@@ -9,29 +9,39 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Order extends Model
 {
     protected $fillable = [
-        'order_code', 'customer_id', 'service_id', 'kurir_id',
+        'order_code', 'customer_id', 'service_id', 'kurir_id', 'laundry_id',
         'weight_kg', 'price_per_kg', 'service_fee', 'total_price',
         'pickup_type', 'pickup_address', 'pickup_note',
         'status', 'notes', 'special_instructions',
-        'pickup_at', 'process_at', 'ready_at', 'finished_at','is_halal',
+        'pickup_at', 'process_at', 'ready_at', 'finished_at',
+        'is_halal', 'is_halal_service', 'has_najis', 'halal_status', // ✨ FIX: Menambahkan kolom fitur syariah laundry
     ];
 
     protected $casts = [
-        'pickup_at'   => 'datetime',
-        'process_at'  => 'datetime',
-        'ready_at'    => 'datetime',
-        'finished_at' => 'datetime',
-        'weight_kg'   => 'decimal:2',
-        'price_per_kg'=> 'decimal:2',
-        'service_fee' => 'decimal:2',
-        'total_price' => 'decimal:2',
-        'is_halal' => 'boolean',
+        'pickup_at'        => 'datetime',
+        'process_at'       => 'datetime',
+        'ready_at'         => 'datetime',
+        'finished_at'      => 'datetime',
+        'weight_kg'        => 'decimal:2',
+        'price_per_kg'     => 'decimal:2',
+        'service_fee'      => 'decimal:2',
+        'total_price'      => 'decimal:2',
+        'is_halal'         => 'boolean',
+        'is_halal_service' => 'boolean',
+        'has_najis'        => 'boolean',
     ];
 
     // ─── Relationships ─────────────────────────────────────────────
+    
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    /** ✨ FIX: Menghubungkan data order ke toko mitra laundry */
+    public function laundry(): BelongsTo
+    {
+        return $this->belongsTo(Laundry::class, 'laundry_id');
     }
 
     public function service(): BelongsTo

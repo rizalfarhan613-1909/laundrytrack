@@ -12,7 +12,7 @@
 
     {{-- ══════════════════════════════════════════════════════════
          PANEL KIRI — Daftar conversation (ChatList)
-    ══════════════════════════════════════════════════════════ --}}
+         ══════════════════════════════════════════════════════════ --}}
     <div
         class="flex-shrink-0 border-r border-gray-100 overflow-hidden"
         :class="activeConversation ? 'hidden md:flex md:w-72 lg:w-80' : 'flex w-full md:w-72 lg:w-80'"
@@ -22,7 +22,7 @@
 
     {{-- ══════════════════════════════════════════════════════════
          PANEL KANAN — Chat box (berubah sesuai conversation dipilih)
-    ══════════════════════════════════════════════════════════════ --}}
+         ══════════════════════════════════════════════════════════════ --}}
     <div
         class="flex-1 overflow-hidden"
         :class="activeConversation ? 'flex flex-col' : 'hidden md:flex md:flex-col'">
@@ -76,6 +76,31 @@
             window.location.href = `/chat/${e.state.conversationId}`;
         } else {
             window.location.href = '/chat';
+        }
+    });
+
+    // --- TAMBAHAN BARU: MENDENGARKAN NOTIFIKASI SECARA GLOBAL ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Pastikan Echo sudah di-load (via resources/js/echo.js atau bootstrap.js)
+        if (typeof window.Echo !== 'undefined') {
+            const userId = {{ auth()->id() ?? 'null' }};
+            
+            if (userId) {
+                // Mendengarkan channel inbox milik user yang sedang login
+                window.Echo.private(`user.${userId}.inbox`)
+                    .listen('.InboxUpdated', (e) => {
+                        console.log('Ada pesan/notifikasi masuk:', e);
+                        // Trigger Livewire untuk merender ulang list chat (jika komponennya butuh update)
+                        // Livewire.dispatch('refreshChatList');
+                    })
+                    .listen('.ConversationUpdated', (e) => {
+                        console.log('Update percakapan:', e);
+                        // Trigger Livewire untuk merender ulang list chat
+                        // Livewire.dispatch('refreshChatList');
+                    });
+            }
+        } else {
+            console.warn("Laravel Echo belum dimuat. Pastikan Vite/Mix sudah di-compile!");
         }
     });
 </script>

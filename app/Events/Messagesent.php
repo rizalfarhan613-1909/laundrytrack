@@ -14,11 +14,12 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow; // <-- DIPERBAIKI (Ganti ShouldBroadcast)
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageSent implements ShouldBroadcast
+// <-- DIPERBAIKI: Menggunakan ShouldBroadcastNow agar instan tanpa worker
+class MessageSent implements ShouldBroadcastNow 
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -85,11 +86,4 @@ class MessageSent implements ShouldBroadcast
             ],
         ];
     }
-
-    /**
-     * ShouldBroadcastNow → kirim synchronous (tanpa queue)
-     * Untuk chat, kita mau instan → tidak pakai queue delay
-     */
-    // Uncomment baris di bawah jika tidak pakai queue (lebih sederhana untuk development):
-    // implements ShouldBroadcastNow
 }

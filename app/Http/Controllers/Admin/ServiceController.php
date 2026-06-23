@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Service;
+use App\Models\Laundry;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -13,22 +14,11 @@ use Illuminate\Validation\Rule;
  * ServiceController
  *
  * Bertanggung jawab untuk semua operasi CRUD pada tabel `services`.
- * Namespace: App\Http\Controllers\Admin  →  dikelompokkan terpisah
- * dari controller customer/kasir agar mudah dikelola.
- *
- * Route resource akan generate 7 route otomatis:
- *   GET    /admin/services           → index()
- *   GET    /admin/services/create    → create()
- *   POST   /admin/services           → store()
- *   GET    /admin/services/{id}      → show()   (tidak kita pakai)
- *   GET    /admin/services/{id}/edit → edit()
- *   PUT    /admin/services/{id}      → update()
- *   DELETE /admin/services/{id}      → destroy()
+ * Namespace: App\Http\Controllers\Admin
  */
 class ServiceController extends Controller
 {
     // ─── Daftar Ikon yang boleh dipilih (Lucide icon names) ──────────
-    // Dipakai di form create/edit sebagai pilihan icon layanan
     private array $availableIcons = [
         'shirt'       => 'Cuci + Setrika',
         'droplets'    => 'Cuci Saja',
@@ -41,19 +31,23 @@ class ServiceController extends Controller
     ];
 
     // ──────────────────────────────────────────────────────────────────
-    // INDEX — Tampilkan daftar semua layanan
+    // INDEX — Tampilkan daftar semua layanan (SUDAH DI-FILTER PER TOKO)
     // GET /admin/services
     // ──────────────────────────────────────────────────────────────────
     public function index(): View
     {
-        // Ambil semua layanan, urutkan dari harga terendah
-        // withCount('orders') → hitung berapa order pakai layanan ini
-        $services = Service::withCount('orders')
+        // 1. Ambil ID Laundry milik admin yang sedang login
+        $realLaundryId = auth()->user()->laundry_id ?? Laundry::where('user_id', auth()->id())->value('id');
+
+        // 2. Ambil HANYA layanan yang sesuai dengan laundry_id milik admin ini
+        $services = Service::where('laundry_id', $realLaundryId)
+            ->withCount('orders')
             ->orderBy('price_per_kg')
             ->get();
 
-        // Hitung total pendapatan per layanan dari order yang selesai
+        // 3. Hitung total pendapatan dari order yang selesai, khusus layanan milik toko ini saja
         $revenuePerService = \App\Models\Order::query()
+            ->whereIn('service_id', $services->pluck('id'))
             ->selectRaw('service_id, SUM(total_price) as total_revenue, COUNT(*) as order_count')
             ->where('status', 'finished')
             ->groupBy('service_id')
@@ -70,7 +64,7 @@ class ServiceController extends Controller
     {
         return view('admin.services.create', [
             'icons'   => $this->availableIcons,
-            'service' => new Service(), // kosong, untuk konsistensi dengan edit()
+            'service' => new Service(),
         ]);
     }
 
@@ -80,13 +74,12 @@ class ServiceController extends Controller
     // ──────────────────────────────────────────────────────────────────
     public function store(Request $request): RedirectResponse
     {
-        // Validasi input dari form
         $validated = $request->validate([
+            'laundry_id'     => 'nullable|exists:laundries,id',
             'name'           => [
                 'required',
                 'string',
                 'max:100',
-                // Nama layanan harus unik di tabel services
                 Rule::unique('services', 'name'),
             ],
             'description'    => 'nullable|string|max:500',
@@ -95,7 +88,6 @@ class ServiceController extends Controller
             'icon'           => ['nullable', 'string', Rule::in(array_keys($this->availableIcons))],
             'is_active'      => 'nullable|boolean',
         ], [
-            // Pesan error dalam Bahasa Indonesia
             'name.required'           => 'Nama layanan wajib diisi.',
             'name.unique'             => 'Nama layanan ini sudah ada. Gunakan nama lain.',
             'price_per_kg.required'   => 'Harga per kg wajib diisi.',
@@ -104,9 +96,10 @@ class ServiceController extends Controller
             'estimated_days.min'      => 'Estimasi hari tidak boleh negatif.',
         ]);
 
-        // Checkbox 'is_active' tidak dikirim jika tidak dicentang
-        // sehingga kita fallback ke false jika tidak ada
         $validated['is_active'] = $request->boolean('is_active', true);
+
+        $realLaundryId = auth()->user()->laundry_id ?? Laundry::where('user_id', auth()->id())->value('id');
+        $validated['laundry_id'] = $request->input('laundry_id') ?? $realLaundryId;
 
         Service::create($validated);
 
@@ -121,8 +114,6 @@ class ServiceController extends Controller
     // ──────────────────────────────────────────────────────────────────
     public function edit(Service $service): View
     {
-        // Route Model Binding: Laravel otomatis ambil Service berdasarkan {id}
-        // Jika tidak ditemukan → otomatis 404
         return view('admin.services.edit', [
             'service' => $service,
             'icons'   => $this->availableIcons,
@@ -138,7 +129,6 @@ class ServiceController extends Controller
         $validated = $request->validate([
             'name'           => [
                 'required', 'string', 'max:100',
-                // Unique tapi kecualikan ID layanan yang sedang diedit
                 Rule::unique('services', 'name')->ignore($service->id),
             ],
             'description'    => 'nullable|string|max:500',
@@ -155,7 +145,9 @@ class ServiceController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active', false);
 
-        // Simpan harga lama untuk ditampilkan di flash message
+        $realLaundryId = auth()->user()->laundry_id ?? Laundry::where('user_id', auth()->id())->value('id');
+        $validated['laundry_id'] = $realLaundryId;
+
         $oldPrice = $service->price_per_kg;
         $service->update($validated);
 
@@ -177,8 +169,6 @@ class ServiceController extends Controller
     // ──────────────────────────────────────────────────────────────────
     public function destroy(Service $service): RedirectResponse
     {
-        // Cek apakah layanan pernah dipakai di order aktif
-        // Jika iya, tidak boleh dihapus (hanya bisa dinonaktifkan)
         $activeOrderCount = $service->orders()
             ->whereNotIn('status', ['finished', 'cancelled'])
             ->count();
@@ -191,7 +181,6 @@ class ServiceController extends Controller
 
         $totalOrders = $service->orders()->count();
         if ($totalOrders > 0) {
-            // Ada order historis → soft-delete dengan nonaktifkan saja
             $service->update(['is_active' => false]);
             return redirect()
                 ->route('admin.services.index')

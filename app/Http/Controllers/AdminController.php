@@ -14,26 +14,46 @@ use Illuminate\Support\Facades\DB;
 class AdminController extends Controller
 {
     // ─── Dashboard ────────────────────────────────────────────────
+    // ─── Dashboard ────────────────────────────────────────────────
     public function dashboard()
     {
         $today = today();
+        // Mengunci ID Laundry berdasarkan Admin yang sedang login
+        $laundryId = auth()->user()->laundry_id;
 
-        // Ringkasan harian
-        $dailyRevenue = Payment::whereDate('verified_at', $today)
+        // Ringkasan harian: Omset Kotor (Gross)
+        $dailyRevenue = Payment::whereHas('order', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->whereDate('verified_at', $today)
             ->where('status', 'verified')
             ->sum('amount');
 
-        $dailyOrders = Order::whereDate('created_at', $today)->count();
+        // Tambahan Logika: Hitung Potongan SaaS 8% Hari Ini
+        $dailySystemFee = Order::join('payments', 'orders.id', '=', 'payments.order_id')
+            ->where('orders.laundry_id', $laundryId)
+            ->whereDate('payments.verified_at', $today)
+            ->where('payments.status', 'verified')
+            ->sum('orders.system_fee');
 
-        $activeOrders = Order::active()->count();
+        // Tambahan Logika: Hitung Pendapatan Bersih Toko Hari Ini
+        $dailyNetRevenue = $dailyRevenue - $dailySystemFee;
 
-        // Pemasukan 7 hari terakhir (untuk chart)
-        $weeklyRevenue = Payment::select(
-                DB::raw('DATE(verified_at) as date'),
-                DB::raw('SUM(amount) as total')
+        $dailyOrders = Order::where('laundry_id', $laundryId)
+            ->whereDate('created_at', $today)
+            ->count();
+
+        $activeOrders = Order::where('laundry_id', $laundryId)->active()->count();
+
+        // Pemasukan 7 hari terakhir untuk Chart (Sekarang Otomatis Dikurangi Potongan SaaS/Sistem Fee)
+        $weeklyRevenue = Payment::join('orders', 'payments.order_id', '=', 'orders.id')
+            ->where('orders.laundry_id', $laundryId)
+            ->select(
+                DB::raw('DATE(payments.verified_at) as date'),
+                DB::raw('SUM(payments.amount - orders.system_fee) as total') // Omset bersih toko
             )
-            ->where('status', 'verified')
-            ->whereBetween('verified_at', [now()->subDays(6), now()])
+            ->where('payments.status', 'verified')
+            ->whereBetween('payments.verified_at', [now()->subDays(6), now()])
             ->groupBy('date')
             ->orderBy('date')
             ->pluck('total', 'date');
@@ -46,12 +66,16 @@ class AdminController extends Controller
         }
 
         // Stok bahan menipis
-        $lowInventories = Inventory::where('stock', '<=', DB::raw('min_stock'))
+        $lowInventories = Inventory::where('laundry_id', $laundryId)
+            ->where('stock', '<=', DB::raw('min_stock'))
             ->orderBy('stock')
             ->get();
 
         // Pembayaran pending verifikasi
-        $pendingPayments = Payment::with(['order.customer'])
+        $pendingPayments = Payment::whereHas('order', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->with(['order.customer'])
             ->where('status', 'pending')
             ->whereIn('method', ['transfer', 'qris'])
             ->latest()
@@ -59,20 +83,23 @@ class AdminController extends Controller
             ->get();
 
         // Order terbaru
-        $recentOrders = Order::with(['customer', 'service'])
+        $recentOrders = Order::where('laundry_id', $laundryId)
+            ->with(['customer', 'service'])
             ->latest()
             ->limit(10)
             ->get();
 
         // Statistik status order
-        $orderStats = Order::select('status', DB::raw('count(*) as total'))
+        $orderStats = Order::where('laundry_id', $laundryId)
+            ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
 
         $kurirEnabled = Setting::get('kurir_enabled', false);
 
+        // Kirim dailySystemFee & dailyNetRevenue ke view admin dashboard kamu nanti
         return view('admin.dashboard', compact(
-            'dailyRevenue', 'dailyOrders', 'activeOrders',
+            'dailyRevenue', 'dailySystemFee', 'dailyNetRevenue', 'dailyOrders', 'activeOrders',
             'revenueChart', 'lowInventories', 'pendingPayments',
             'recentOrders', 'orderStats', 'kurirEnabled'
         ));
@@ -90,7 +117,10 @@ class AdminController extends Controller
 
     public function kurirManagement()
     {
-        $kurirs = \App\Models\User::where('role', 'kurir')
+        $laundryId = auth()->user()->laundry_id;
+
+        $kurirs = \App\Models\User::where('laundry_id', $laundryId)
+            ->where('role', 'kurir')
             ->with(['deliveries' => function ($q) {
                 $q->select('id', 'kurir_id', 'status', 'pickup_at', 'finished_at');
             }])
@@ -98,7 +128,10 @@ class AdminController extends Controller
             ->orderBy('name')
             ->get();
 
-        $pendingPickups = \App\Models\Order::where('status', 'pending')
+        $pendingPickups = \App\Models\Order::whereHas('service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->where('status', 'pending')
             ->where('pickup_type', 'jemput')
             ->whereNull('kurir_id')
             ->with(['customer'])
@@ -109,15 +142,24 @@ class AdminController extends Controller
 
         return view('admin.kurir.index', compact('kurirs', 'pendingPickups', 'kurirEnabled'));
     }
+
     // ─── Inventory Management ─────────────────────────────────────
     public function inventoryIndex()
     {
-        $inventories = Inventory::withCount(['logs'])->latest()->paginate(15);
+        $laundryId = auth()->user()->laundry_id;
+
+        $inventories = Inventory::where('laundry_id', $laundryId)
+            ->withCount(['logs'])
+            ->latest()
+            ->paginate(15);
+
         return view('admin.inventory.index', compact('inventories'));
     }
 
     public function inventoryStore(Request $request)
     {
+        $laundryId = auth()->user()->laundry_id;
+
         $validated = $request->validate([
             'name'           => 'required|string|max:100',
             'category'       => 'required|string|max:50',
@@ -128,12 +170,20 @@ class AdminController extends Controller
             'notes'          => 'nullable|string|max:255',
         ]);
 
+        $validated['laundry_id'] = $laundryId;
+
         Inventory::create($validated);
         return back()->with('success', 'Item inventaris berhasil ditambahkan.');
     }
 
     public function inventoryAdjust(Request $request, Inventory $inventory)
     {
+        $laundryId = auth()->user()->laundry_id;
+
+        if ($inventory->laundry_id !== $laundryId) {
+            abort(403, 'Akses ditolak. Item ini bukan milik toko Anda.');
+        }
+
         $validated = $request->validate([
             'type'        => 'required|in:in,out',
             'quantity'    => 'required|numeric|min:0.01',
@@ -153,24 +203,44 @@ class AdminController extends Controller
     // ─── Reports ─────────────────────────────────────────────────
     public function reports(Request $request)
     {
+        $laundryId = auth()->user()->laundry_id;
+
         $from = $request->get('from', now()->startOfMonth()->format('Y-m-d'));
         $to   = $request->get('to',   now()->format('Y-m-d'));
 
-        $revenue = Payment::where('status', 'verified')
+        $revenue = Payment::whereHas('order.service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->where('status', 'verified')
             ->whereBetween('verified_at', [$from, $to . ' 23:59:59'])
             ->sum('amount');
 
-        $totalOrders   = Order::whereBetween('created_at', [$from, $to . ' 23:59:59'])->count();
-        $finishedOrders = Order::where('status', 'finished')
-            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])->count();
+        $totalOrders = Order::whereHas('service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
+            ->count();
 
-        $serviceStats = Order::select('service_id', DB::raw('count(*) as total'))
+        $finishedOrders = Order::whereHas('service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->where('status', 'finished')
+            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
+            ->count();
+
+        $serviceStats = Order::whereHas('service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->select('service_id', DB::raw('count(*) as total'))
             ->with('service')
             ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
             ->groupBy('service_id')
             ->get();
 
-        $dailyRevenue = Payment::select(
+        $dailyRevenue = Payment::whereHas('order.service', function ($q) use ($laundryId) {
+                $q->where('laundry_id', $laundryId);
+            })
+            ->select(
                 DB::raw('DATE(verified_at) as date'),
                 DB::raw('SUM(amount) as total'),
                 DB::raw('COUNT(*) as count')
@@ -190,8 +260,10 @@ class AdminController extends Controller
     // ─── User Management ─────────────────────────────────────────
     public function users(Request $request)
     {
+        $laundryId = auth()->user()->laundry_id;
         $role  = $request->get('role', 'all');
-        $query = User::latest();
+        
+        $query = User::where('laundry_id', $laundryId)->latest();
         if ($role !== 'all') $query->where('role', $role);
 
         $users = $query->paginate(20);
@@ -200,6 +272,12 @@ class AdminController extends Controller
 
     public function toggleUserStatus(User $user)
     {
+        $laundryId = auth()->user()->laundry_id;
+
+        if ($user->laundry_id !== $laundryId) {
+            abort(403, 'Akses ditolak.');
+        }
+
         $user->update(['is_active' => !$user->is_active]);
         $status = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
         return back()->with('success', "User {$user->name} berhasil {$status}.");

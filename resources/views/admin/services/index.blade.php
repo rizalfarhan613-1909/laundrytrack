@@ -10,12 +10,12 @@
 @section('page-title', 'Daftar Harga Layanan')
 
 @section('header-actions')
-    {{-- Tombol tambah layanan baru --}}
-    <a href="{{ route('admin.services.create') }}"
-       class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-        Tambah Layanan
-    </a>
+{{-- Tombol tambah layanan baru --}}
+<a href="{{ route('admin.services.create') }}"
+    class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+    <i data-lucide="plus" class="w-4 h-4"></i>
+    Tambah Layanan
+</a>
 @endsection
 
 @section('content')
@@ -51,7 +51,7 @@
                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Order</th>
                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Revenue</th>
                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Aksi</th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -63,10 +63,29 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 {{-- Icon layanan --}}
+                                @php
+                                // ── MAP KONVERSI ICON MATERIAL DESIGN (DATABASE) KE LUCIDE ICON ──
+                                $iconMap = [
+                                'schedule' => 'clock',
+                                'water_drop' => 'droplet',
+                                'dry_cleaning' => 'shirt', // Menggunakan 'shirt' sebagai fallback aman
+                                'local_laundry_service' => 'washing-machine',
+                                'iron' => 'iron',
+                                'flash_on' => 'zap',
+                                ];
+
+                                // Ambil nama ikon dari database
+                                $dbIcon = $service->icon ?? 'shirt';
+
+                                // Konversi ke format Lucide
+                                $serviceIcon = $iconMap[$dbIcon] ?? str_replace('_', '-', $dbIcon);
+                                @endphp
+
                                 <div class="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center
-                                            {{ $service->is_active ? 'bg-blue-50' : 'bg-gray-100' }}">
-                                    <i data-lucide="{{ $service->icon ?? 'shirt' }}"
-                                       class="w-5 h-5 {{ $service->is_active ? 'text-blue-500' : 'text-gray-400' }}"></i>
+                    {{ $service->is_active ? 'bg-blue-50' : 'bg-gray-100' }}">
+                                    {{-- Menggunakan variabel $serviceIcon yang sudah dikonversi --}}
+                                    <i data-lucide="{{ $serviceIcon }}"
+                                        class="w-5 h-5 {{ $service->is_active ? 'text-blue-500' : 'text-gray-400' }}"></i>
                                 </div>
                                 <div>
                                     <p class="font-semibold text-gray-800 {{ !$service->is_active ? 'line-through text-gray-400' : '' }}">
@@ -112,13 +131,13 @@
                         {{-- Toggle Aktif / Nonaktif (AJAX) --}}
                         <td class="px-4 py-4">
                             <button onclick="toggleService({{ $service->id }})"
-                                    id="toggle-{{ $service->id }}"
-                                    class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all
+                                id="toggle-{{ $service->id }}"
+                                class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all
                                            {{ $service->is_active
                                               ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                               : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">
                                 <span class="w-2 h-2 rounded-full {{ $service->is_active ? 'bg-green-500' : 'bg-gray-400' }}"
-                                      id="dot-{{ $service->id }}"></span>
+                                    id="dot-{{ $service->id }}"></span>
                                 <span id="label-{{ $service->id }}">
                                     {{ $service->is_active ? 'Aktif' : 'Nonaktif' }}
                                 </span>
@@ -131,18 +150,18 @@
 
                                 {{-- Edit --}}
                                 <a href="{{ route('admin.services.edit', $service) }}"
-                                   class="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                    class="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
                                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                                     Edit
                                 </a>
 
                                 {{-- Hapus --}}
                                 <form method="POST" action="{{ route('admin.services.destroy', $service) }}"
-                                      onsubmit="return confirmDelete('{{ $service->name }}', {{ $service->orders_count }})">
+                                    onsubmit="return confirmDelete('{{ $service->name }}', {{ $service->orders_count }})">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit"
-                                            class="flex items-center gap-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                        class="flex items-center gap-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
                                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                         Hapus
                                     </button>
@@ -159,7 +178,7 @@
                             <p class="font-semibold text-gray-500">Belum ada layanan</p>
                             <p class="text-sm text-gray-400 mt-1">Tambahkan layanan pertama kamu.</p>
                             <a href="{{ route('admin.services.create') }}"
-                               class="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700">
+                                class="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700">
                                 <i data-lucide="plus" class="w-4 h-4"></i> Tambah Sekarang
                             </a>
                         </td>
@@ -184,80 +203,84 @@
 
 @push('scripts')
 <script>
-/**
- * Toggle aktif/nonaktif layanan via AJAX
- * Tidak perlu reload halaman — tombol langsung berubah warnanya
- */
-async function toggleService(id) {
-    const btn   = document.getElementById('toggle-' + id);
-    const dot   = document.getElementById('dot-' + id);
-    const label = document.getElementById('label-' + id);
+    /**
+     * Toggle aktif/nonaktif layanan via AJAX
+     * Tidak perlu reload halaman — tombol langsung berubah warnanya
+     */
+    async function toggleService(id) {
+        const btn = document.getElementById('toggle-' + id);
+        const dot = document.getElementById('dot-' + id);
+        const label = document.getElementById('label-' + id);
 
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
 
-    try {
-        const res = await fetch(`/admin/services/${id}/toggle`, {
-            method:  'PATCH',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept':       'application/json',
-            },
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch(`/admin/services/${id}/toggle`, {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+            });
+            const data = await res.json();
 
-        if (data.success) {
-            const active = data.is_active;
+            if (data.success) {
+                const active = data.is_active;
 
-            // Update tampilan tombol
-            btn.className = `flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all
+                // Update tampilan tombol
+                btn.className = `flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all
                 ${active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`;
-            dot.className   = `w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-gray-400'}`;
-            label.textContent = active ? 'Aktif' : 'Nonaktif';
+                dot.className = `w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-gray-400'}`;
+                label.textContent = active ? 'Aktif' : 'Nonaktif';
 
-            // Update tampilan icon di row (icon meredup jika nonaktif)
-            const iconDiv = btn.closest('tr').querySelector('.rounded-xl');
-            iconDiv.className = iconDiv.className.replace(/bg-(blue|gray)-\d+/, active ? 'bg-blue-50' : 'bg-gray-100');
+                // Update tampilan icon di row (icon meredup jika nonaktif)
+                const iconDiv = btn.closest('tr').querySelector('.rounded-xl');
+                iconDiv.className = iconDiv.className.replace(/bg-(blue|gray)-\d+/, active ? 'bg-blue-50' : 'bg-gray-100');
 
-            showToast(data.message, active ? 'success' : 'warning');
+                showToast(data.message, active ? 'success' : 'warning');
+            }
+        } catch (e) {
+            showToast('Gagal memperbarui status. Coba lagi.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.style.opacity = '1';
         }
-    } catch(e) {
-        showToast('Gagal memperbarui status. Coba lagi.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.style.opacity = '1';
     }
-}
 
-/**
- * Konfirmasi sebelum hapus layanan
- */
-function confirmDelete(name, orderCount) {
-    if (orderCount > 0) {
-        return confirm(
-            `Layanan "${name}" memiliki ${orderCount} order.\n\n` +
-            `Layanan ini tidak akan dihapus permanen, tapi akan dinonaktifkan.\n\n` +
-            `Lanjutkan?`
-        );
+    /**
+     * Konfirmasi sebelum hapus layanan
+     */
+    function confirmDelete(name, orderCount) {
+        if (orderCount > 0) {
+            return confirm(
+                `Layanan "${name}" memiliki ${orderCount} order.\n\n` +
+                `Layanan ini tidak akan dihapus permanen, tapi akan dinonaktifkan.\n\n` +
+                `Lanjutkan?`
+            );
+        }
+        return confirm(`Hapus layanan "${name}"? Tindakan ini tidak bisa dibatalkan.`);
     }
-    return confirm(`Hapus layanan "${name}"? Tindakan ini tidak bisa dibatalkan.`);
-}
 
-/**
- * Toast notification mini
- */
-function showToast(msg, type = 'success') {
-    const colors = {
-        success: 'bg-green-600',
-        warning: 'bg-amber-500',
-        error:   'bg-red-600',
-    };
-    const t = document.createElement('div');
-    t.className = `fixed bottom-6 right-6 z-50 ${colors[type]} text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl`;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3500);
-}
+    /**
+     * Toast notification mini
+     */
+    function showToast(msg, type = 'success') {
+        const colors = {
+            success: 'bg-green-600',
+            warning: 'bg-amber-500',
+            error: 'bg-red-600',
+        };
+        const t = document.createElement('div');
+        t.className = `fixed bottom-6 right-6 z-50 ${colors[type]} text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl`;
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => {
+            t.style.opacity = '0';
+            t.style.transition = 'opacity .3s';
+            setTimeout(() => t.remove(), 300);
+        }, 3500);
+    }
 </script>
 @endpush
 @endsection

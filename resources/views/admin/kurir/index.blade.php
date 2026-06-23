@@ -81,7 +81,7 @@
 
                     {{-- Aksi --}}
                     <div class="flex flex-col gap-1.5 flex-shrink-0">
-                        <form method="POST" action="{{ route('admin.users.toggle', $kurir) }}">
+                        <form method="POST" action="{{ route('admin.pegawai.toggle', $kurir) }}">
                             @csrf @method('PATCH')
                             <button class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors w-full
                                            {{ $kurir->is_active ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100' }}">
@@ -95,7 +95,7 @@
                     <i data-lucide="users" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
                     <p class="text-sm">Belum ada kurir terdaftar.</p>
                     <p class="text-xs mt-1">Tambah user dengan role "kurir" di halaman
-                        <a href="{{ route('admin.users.index') }}" class="text-blue-500 hover:underline">Manajemen User</a>.
+                        <a href="{{ route('admin.pegawai.index') }}" class="text-blue-500 hover:underline">Manajemen User</a>.
                     </p>
                 </div>
                 @endforelse

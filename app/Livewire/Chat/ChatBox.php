@@ -64,7 +64,7 @@ class ChatBox extends Component
         $this->conversation = Conversation::with([
             'participantOne',
             'participantTwo',
-            'order:id,order_code,status',
+            'order:id,order_code,status,laundry_id', // ✨ TAMBAHAN: Pastikan laundry_id di-load
         ])->findOrFail($this->conversationId);
 
         // Pastikan user ini adalah peserta conversation
@@ -216,6 +216,12 @@ class ChatBox extends Component
             }
         }
 
+        // ✨ TAMBAHAN: Otomatis ambil laundry_id persis seperti di ChatController
+        $laundryId = $this->conversation->laundry_id;
+        if (!$laundryId && $this->conversation->order) {
+            $laundryId = $this->conversation->order->laundry_id ?? null;
+        }
+
         // Buat pesan baru
         $message = Message::create([
             'conversation_id' => $this->conversationId,
@@ -223,6 +229,7 @@ class ChatBox extends Component
             'body'            => $body ?: '📷',
             'type'            => $this->attachment ? 'image' : 'text',
             'attachment_path' => $attachmentPath,
+            'laundry_id'      => $laundryId, // ✨ TAMBAHAN: laundry_id sekarang disimpan!
         ]);
 
         $message->load('sender:id,name,role');
@@ -238,14 +245,14 @@ class ChatBox extends Component
         // ── Broadcast via Reverb ───────────────────────────────────
         // Event ini dikirim ke WebSocket → semua browser yang listen
         // di channel conversation.{id} akan menerima pesan baru
-        // broadcast(new MessageSent($message, $conversation))->toOthers();
+        broadcast(new MessageSent($message, $conversation))->toOthers();
 
         // Update inbox penerima
         $recipientId = $conversation->participant_one_id === $userId
             ? $conversation->participant_two_id
             : $conversation->participant_one_id;
 
-        // broadcast(new ConversationUpdated($conversation, $recipientId));
+        broadcast(new ConversationUpdated($conversation, $recipientId));
 
         // Scroll ke bawah setelah kirim (JavaScript)
         $this->dispatch('message-sent');

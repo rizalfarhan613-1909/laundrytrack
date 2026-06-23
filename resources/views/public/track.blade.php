@@ -7,43 +7,58 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script> 
     <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
 
 <div class="max-w-lg mx-auto px-4 py-16">
 
-    {{-- Logo --}}
+    {{-- Logo (Ukuran diperbesar) --}}
     <div class="text-center mb-10">
-        <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-200">
-            <i data-lucide="shirt" class="w-7 h-7 text-white"></i>
-        </div>
-        <h1 class="text-2xl font-extrabold text-blue-700">LaundryTrack</h1>
+        <img src="{{ asset('images/logou.png') }}" alt="LaundryTrack Logo" class="h-28 w-auto object-contain mx-auto mb-4">
+        <h1 class="font-extrabold text-blue-400 text-2xl">LaundryTrack</h1>
         <p class="text-gray-400 text-sm">Lacak status cucian kamu</p>
     </div>
 
     {{-- Search Form --}}
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <form method="GET" action="{{ route('order.track') }}" class="flex gap-2">
-            <input type="text" name="code" value="{{ request('code') }}"
-                   placeholder="Masukkan kode order... (LT-20240101-001)"
+            <input type="text" id="orderCodeInput" name="code" value="{{ request('code') }}"
+                   placeholder="Masukkan kode order..."
                    class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button class="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex-shrink-0">
+            
+            <button type="button" onclick="startScanner()" class="bg-blue-100 text-blue-600 p-3 rounded-xl hover:bg-blue-200 transition-colors">
+                <i data-lucide="camera" class="w-5 h-5"></i>
+            </button>
+            <button type="submit" class="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors">
                 Cek
             </button>
         </form>
+        
+        {{-- Area Scanner --}}
+        <div id="reader" class="mt-4 hidden w-full"></div>
     </div>
 
-    {{-- Result --}}
+    {{-- Logic Hasil Pencarian --}}
     @if(request('code') && !$order)
+    {{-- Error Case --}}
     <div class="bg-white rounded-2xl border border-red-100 p-6 text-center">
         <i data-lucide="search-x" class="w-10 h-10 text-red-300 mx-auto mb-2"></i>
         <p class="font-semibold text-gray-700">Order tidak ditemukan</p>
         <p class="text-sm text-gray-400 mt-1">Periksa kembali kode order kamu.</p>
     </div>
-    @endif
+    @elseif(isset($order) && $order)
+    {{-- Success Case --}}
+    
+    {{-- QR Code Display --}}
+    <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 mb-6 text-center">
+        <p class="text-xs text-gray-400 mb-3">Tunjukkan QR ini ke admin saat mengambil cucian</p>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ urlencode(url()->current() . '?code=' . $order->order_code) }}" 
+             alt="QR Code Order" class="mx-auto w-32 h-32 border-4 border-white shadow-lg rounded-lg">
+        <p class="text-sm font-bold text-blue-600 mt-2">{{ $order->order_code }}</p>
+    </div>
 
-    @if($order)
     @php
         $steps = [
             ['key'=>'pending',    'label'=>'Order Diterima',  'icon'=>'clipboard-check'],
@@ -61,8 +76,7 @@
     @endphp
 
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-
-        {{-- Order Header --}}
+        {{-- Header Status --}}
         <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-5">
             <div class="flex justify-between items-start">
                 <div>
@@ -88,9 +102,7 @@
             </div>
             @else
             <div class="relative">
-                {{-- Line --}}
                 <div class="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-100"></div>
-
                 <div class="space-y-6">
                     @foreach($steps as $i => $step)
                     @php
@@ -160,7 +172,6 @@
             </div>
         </div>
         @endif
-
     </div>
     @endif
 
@@ -169,6 +180,27 @@
     </p>
 </div>
 
-<script>document.addEventListener('DOMContentLoaded', () => lucide.createIcons());</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+
+    function startScanner() {
+        document.getElementById('reader').classList.remove('hidden');
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            (decodedText, decodedResult) => {
+                document.getElementById('orderCodeInput').value = decodedText;
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').classList.add('hidden');
+                    window.location.href = "{{ route('order.track') }}?code=" + decodedText;
+                });
+            },
+            (errorMessage) => { /* Abaikan error */ }
+        ).catch(err => {
+            alert("Gagal membuka kamera: Pastikan izin akses kamera diberikan.");
+        });
+    }
+</script>
 </body>
 </html>

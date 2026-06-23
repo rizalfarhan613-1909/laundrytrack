@@ -17,10 +17,10 @@
     {{-- Logo --}}
     <div class="text-center mb-8">
         <a href="{{ route('home') }}" class="inline-flex items-center gap-2.5 group">
-            <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">
-                <i data-lucide="shirt" class="w-6 h-6 text-white"></i>
+            <div class="w-12 h-12 bg-blue-000 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">
+                <img src="{{ asset('images/logou.png') }}" alt="LaundryTrack Logo" class="h-12 w-auto object-contain">
             </div>
-            <span class="font-extrabold text-blue-700 text-2xl">LaundryTrack</span>
+            <span class="font-extrabold text-blue-400 text-2xl">LaundryTrack</span>
         </a>
         <p class="text-gray-400 text-sm mt-2">Masuk ke akun kamu</p>
     </div>
@@ -80,7 +80,7 @@
                 </div>
 
                 <button type="submit"
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2">
+                        class="w-full bg-blue-400 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2">
                     <i data-lucide="log-in" class="w-4 h-4"></i>
                     Masuk
                 </button>

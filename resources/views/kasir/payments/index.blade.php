@@ -147,7 +147,7 @@
 
                 {{-- Action Buttons (Diubah menggunakan passing 'this') --}}
                 <div class="flex gap-2 flex-shrink-0">
-                    @if($order->customer->phone)
+                   {{-- @if($order->customer->phone)
                         @php
                             $cleanPhone = preg_replace('/[^0-9]/', '', $order->customer->phone);
                             if (str_starts_with($cleanPhone, '0')) {
@@ -163,7 +163,7 @@
                             <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                             WA Customer
                         </a>
-                    @endif
+                    @endif --}}
 
                     {{-- Tombol Tolak --}}
                     <button onclick="verifyPayment(this, {{ $payment->id }}, 'reject')"

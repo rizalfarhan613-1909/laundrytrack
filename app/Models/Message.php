@@ -14,11 +14,12 @@ class Message extends Model
 
     protected $fillable = [
         'conversation_id', 'sender_id',
-        'body', 'type', 'attachment_path', 'read_at',
+        'body', 'type', 'attachment_path', 'read_at', 'laundry_id',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'laundry_id' => 'integer',
     ];
 
     // ─── Relasi ───────────────────────────────────────────────────
@@ -65,10 +66,20 @@ class Message extends Model
         return $this->created_at->isoFormat('D MMM, H:mm');
     }
 
-    // ─── Boot: auto-update conversation setelah create ────────────
+    // ─── Boot: Eloquent Model Events ──────────────────────────────
 
     protected static function booted(): void
     {
+        // ✨ AMAN & OTOMATIS: Wariskan laundry_id dari percakapan induk sebelum data pesan di-insert
+        static::creating(function (Message $message) {
+            if ($message->conversation_id && !$message->laundry_id) {
+                if ($message->conversation) {
+                    $message->laundry_id = $message->conversation->laundry_id;
+                }
+            }
+        });
+
+        // 🔄 BAWAAN AWAL: Mengupdate cache info pesan terakhir pada tabel conversations setelah sukses create
         static::created(function (Message $message) {
             // Setelah pesan disimpan, update cache di tabel conversations
             $message->conversation->updateLastMessage($message);

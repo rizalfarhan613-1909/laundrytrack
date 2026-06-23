@@ -10,7 +10,7 @@ class Service extends Model
 {
     protected $fillable = [
         'name', 'description', 'price_per_kg',
-        'estimated_days', 'is_active', 'icon',
+        'estimated_days', 'is_active', 'icon','laundry_id',
     ];
  
     protected $casts = [

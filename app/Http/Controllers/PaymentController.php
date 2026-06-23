@@ -80,7 +80,7 @@ class PaymentController extends Controller
             return back()->withErrors(['error' => 'Pembayaran ini sudah diproses sebelumnya.']);
         }
 
-        $order = $payment->order->load('customer', 'service');
+        $order = $payment->order->load('customer', 'service', 'laundry.subscriptionPlan');
 
         if ($request->action === 'verify') {
             $payment->update([
@@ -89,6 +89,19 @@ class PaymentController extends Controller
                 'verified_by' => Auth::id(),
                 'verified_at' => now(),
             ]);
+
+            // ─── TAMBAHAN LOGIKA POTONGAN SAAS (CEO EARNINGS) ─────────────────
+            $laundry = $order->laundry;
+            $plan = $laundry ? $laundry->subscriptionPlan : null;
+
+            if ($plan && $plan->fee_percentage > 0) {
+                // Hitung otomatis berdasarkan persentase di database paket
+                $order->system_fee = $order->total_price * ($plan->fee_percentage / 100);
+            } else {
+                $order->system_fee = 0;
+            }
+            $order->save();
+            // ──────────────────────────────────────────────────────────────────
 
             // Jika cash → langsung tandai order finished (opsional, sesuaikan alur)
             // Jika transfer/qris → order tetap lanjut proses normal
@@ -128,7 +141,7 @@ class PaymentController extends Controller
             return response()->json(['success' => false, 'message' => 'Pembayaran sudah diproses.'], 422);
         }
 
-        $order = $payment->order->load('customer', 'service');
+        $order = $payment->order->load('customer', 'service', 'laundry.subscriptionPlan');
 
         if ($request->action === 'verify') {
             $payment->update([
@@ -136,6 +149,19 @@ class PaymentController extends Controller
                 'verified_by' => Auth::id(),
                 'verified_at' => now(),
             ]);
+
+            // ─── TAMBAHAN LOGIKA POTONGAN SAAS (CEO EARNINGS) ─────────────────
+            $laundry = $order->laundry;
+            $plan = $laundry ? $laundry->subscriptionPlan : null;
+
+            if ($plan && $plan->fee_percentage > 0) {
+                $order->system_fee = $order->total_price * ($plan->fee_percentage / 100);
+            } else {
+                $order->system_fee = 0;
+            }
+            $order->save();
+            // ──────────────────────────────────────────────────────────────────
+
             $this->wa->notifyPaymentVerified($order);
             $status = 'verified';
             $label  = 'Lunas ✓';

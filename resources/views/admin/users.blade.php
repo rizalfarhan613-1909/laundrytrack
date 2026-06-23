@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Manajemen User')
-@section('page-title', 'Manajemen User')
+@section('title', 'Manajemen Pegawai')
+@section('page-title', 'Manajemen Pegawai')
 
 @section('content')
 <div class="space-y-5">
 
     {{-- Role filter tabs --}}
     <div class="flex gap-2 flex-wrap">
-        @foreach(['all'=>'Semua','admin'=>'Admin','kasir'=>'Kasir','kurir'=>'Kurir','customer'=>'Customer'] as $key=>$label)
+        @foreach(['all'=>'Semua','admin'=>'Admin','kasir'=>'Kasir','kurir'=>'Kurir',] as $key=>$label)
         <a href="{{ route('admin.users.index', ['role'=>$key]) }}"
            class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors
                   {{ $role === $key ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' }}">
@@ -50,7 +50,7 @@
                     </td>
                     <td class="px-4 py-4">
                         @php
-                        $roleColors = ['admin'=>'bg-purple-100 text-purple-700','kasir'=>'bg-blue-100 text-blue-700','kurir'=>'bg-amber-100 text-amber-700','customer'=>'bg-gray-100 text-gray-600'];
+                        $roleColors = ['admin'=>'bg-purple-100 text-purple-700','kasir'=>'bg-blue-100 text-blue-700','kurir'=>'bg-gray-100 text-gray-600'];
                         @endphp
                         <span class="text-xs px-2.5 py-1 rounded-full font-medium capitalize {{ $roleColors[$user->role] ?? 'bg-gray-100 text-gray-600' }}">
                             {{ $user->role }}
