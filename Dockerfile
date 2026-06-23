@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     gnupg
 
 # 3. Install Node.js untuk melakukan compile asset Tailwind/Vite
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs
 
 # 4. Install ekstensi PHP yang diwajibkan oleh Laravel
